@@ -1,49 +1,49 @@
-
 # Dependências
 node_modules/
-.pnp
-.pnp.js
 
-# Build
+# Builds
 dist/
 build/
+out/
 
-# Variáveis de ambiente
+# Cache
+.cache/
+.vite/
+.nest/
+.turbo/
+
+# Testes
+coverage/
+
+# Variáveis de ambiente e segredos
 .env
 .env.*
 !.env.example
+!.env.*.example
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# Testes
-coverage/
-
-# Cache
-.cache/
-.vite/
+# TypeScript
 *.tsbuildinfo
+
+# Prisma - bancos locais
+*.db
+*.db-journal
 
 # Sistema operacional
 .DS_Store
 Thumbs.db
-desktop.ini
+Desktop.ini
 
 # Editores
-.vscode/*
-!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 
 # Arquivos temporários
-tmp/
-temp/
-
-# Deploy
-.vercel/
-.netlify/
+*.tmp
+*.temp
