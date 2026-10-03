@@ -5,6 +5,9 @@ import {
 } from 'react-router-dom'
 
 import DashboardLayout from '../layouts/DashboardLayout'
+import Login from '../pages/auth/Login'
+import Register from '../pages/auth/Register'
+import ProtectedRoute from './ProtectedRouter'
 
 function Page({ title }: { title: string }) {
     return (
@@ -23,67 +26,57 @@ function Page({ title }: { title: string }) {
 export default function AppRoutes() {
     return (
         <Routes>
-            {/* Redirecionamento inicial */}
-            <Route
-                path="/"
-                element={<Navigate to="/login" replace />}
-            />
+            <Route path="/" element={<Navigate to="/login" replace />} />
 
             {/* Autenticação */}
-            <Route
-                path="/login"
-                element={<Page title="Entrar no FinanFlow" />}
-            />
-
-            <Route
-                path="/cadastro"
-                element={<Page title="Criar conta" />}
-            />
+            <Route path="/login" element={<Login />} />
+            <Route path="/cadastro" element={<Register />} />
 
             <Route
                 path="/recuperar-senha"
                 element={<Page title="Recuperar senha" />}
             />
 
-            {/* Páginas internas */}
-            <Route element={<DashboardLayout />}>
-                <Route
-                    path="/dashboard"
-                    element={<Page title="Dashboard" />}
-                />
+            {/* Rotas protegidas */}
+            <Route element={<ProtectedRoute />}>
+                <Route element={<DashboardLayout />}>
+                    <Route
+                        path="/dashboard"
+                        element={<Page title="Dashboard" />}
+                    />
 
-                <Route
-                    path="/transacoes"
-                    element={<Page title="Transações" />}
-                />
+                    <Route
+                        path="/transacoes"
+                        element={<Page title="Transações" />}
+                    />
 
-                <Route
-                    path="/transacoes/nova"
-                    element={<Page title="Nova transação" />}
-                />
+                    <Route
+                        path="/transacoes/nova"
+                        element={<Page title="Nova transação" />}
+                    />
 
-                <Route
-                    path="/categorias"
-                    element={<Page title="Categorias" />}
-                />
+                    <Route
+                        path="/categorias"
+                        element={<Page title="Categorias" />}
+                    />
 
-                <Route
-                    path="/relatorios"
-                    element={<Page title="Relatórios" />}
-                />
+                    <Route
+                        path="/relatorios"
+                        element={<Page title="Relatórios" />}
+                    />
 
-                <Route
-                    path="/metas"
-                    element={<Page title="Metas financeiras" />}
-                />
+                    <Route
+                        path="/metas"
+                        element={<Page title="Metas financeiras" />}
+                    />
 
-                <Route
-                    path="/configuracoes"
-                    element={<Page title="Configurações" />}
-                />
+                    <Route
+                        path="/configuracoes"
+                        element={<Page title="Configurações" />}
+                    />
+                </Route>
             </Route>
 
-            {/* Página não encontrada */}
             <Route
                 path="*"
                 element={<Page title="Página não encontrada" />}
