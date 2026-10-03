@@ -9,6 +9,8 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ProtectedRoute from './ProtectedRouter'
 
+import Dashboard from '../pages/dashboard/Dashboard'
+
 function Page({ title }: { title: string }) {
     return (
         <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -42,7 +44,7 @@ export default function AppRoutes() {
                 <Route element={<DashboardLayout />}>
                     <Route
                         path="/dashboard"
-                        element={<Page title="Dashboard" />}
+                        element={<Dashboard />}
                     />
 
                     <Route
