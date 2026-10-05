@@ -19,19 +19,51 @@ interface AuthContextData {
 const AuthContext = createContext<AuthContextData | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<AuthUser | null>(null)
-    const [token, setToken] = useState<string | null>(null)
+    const [user, setUser] = useState<AuthUser | null>(() => {
+        const storedUser = localStorage.getItem('finanflow_user')
+
+        if (!storedUser) {
+            return null
+        }
+
+        try {
+            return JSON.parse(storedUser) as AuthUser
+        } catch {
+            localStorage.removeItem('finanflow_user')
+            return null
+        }
+    })
+
+    const [token, setToken] = useState<string | null>(() => {
+        return localStorage.getItem('finanflow_token')
+    })
 
     async function login(email: string, password: string) {
-        const response = await authService.login({ email, password })
+        const response = await authService.login({
+            email,
+            password,
+        })
 
         setUser(response.user)
         setToken(response.access_token)
+
+        localStorage.setItem(
+            'finanflow_user',
+            JSON.stringify(response.user),
+        )
+
+        localStorage.setItem(
+            'finanflow_token',
+            response.access_token,
+        )
     }
 
     function logout() {
         setUser(null)
         setToken(null)
+
+        localStorage.removeItem('finanflow_user')
+        localStorage.removeItem('finanflow_token')
     }
 
     return (
@@ -53,7 +85,9 @@ export function useAuth() {
     const context = useContext(AuthContext)
 
     if (!context) {
-        throw new Error('useAuth deve ser utilizado dentro de AuthProvider')
+        throw new Error(
+            'useAuth deve ser utilizado dentro de AuthProvider',
+        )
     }
 
     return context

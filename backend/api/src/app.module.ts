@@ -6,7 +6,8 @@ import { PrismaModule } from './prisma/prisma.module.js'
 import { UsersModule } from './users/users.module.js'
 import { AuthModule } from './auth/auth.module.js'
 import { AccountsModule } from './accounts/accounts.module.js'
-
+import { TransactionsModule } from './transactions/transactions.module.js'
+import { CategoriesModule } from './categories/categories.module.js'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -16,6 +17,8 @@ import { AccountsModule } from './accounts/accounts.module.js'
     UsersModule,
     AuthModule,
     AccountsModule,
+    TransactionsModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
