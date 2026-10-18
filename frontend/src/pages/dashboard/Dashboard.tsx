@@ -16,6 +16,7 @@ export default function Dashboard() {
         loading,
         error,
         totalInitialBalance,
+        totalCurrentBalance,
         refetch,
     } = useAccounts()
 
@@ -145,10 +146,21 @@ export default function Dashboard() {
 
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                 <p className="text-sm text-slate-500">
-                    Saldo inicial total
+                    Saldo atual total
                 </p>
 
-                <p className="mt-2 text-3xl font-bold text-slate-800">
+                <p
+                    className={`mt-2 text-3xl font-bold ${
+                        totalCurrentBalance < 0
+                            ? 'text-red-600'
+                            : 'text-slate-800'
+                    }`}
+                >
+                    {formatCurrency(totalCurrentBalance)}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-400">
+                    Saldo inicial total:{' '}
                     {formatCurrency(totalInitialBalance)}
                 </p>
             </div>
@@ -213,16 +225,27 @@ export default function Dashboard() {
                                     </span>
                                 </div>
 
-                                <p className="mt-5 text-xl font-bold text-slate-800">
+                                <p
+                                    className={`mt-5 text-xl font-bold ${
+                                        Number(account.currentBalance) < 0
+                                            ? 'text-red-600'
+                                            : 'text-slate-800'
+                                    }`}
+                                >
                                     {formatCurrency(
                                         Number(
-                                            account.initialBalance,
+                                            account.currentBalance,
                                         ),
                                     )}
                                 </p>
 
                                 <p className="mt-1 text-xs text-slate-400">
-                                    Clique para ver detalhes
+                                    Saldo inicial:{' '}
+                                    {formatCurrency(
+                                        Number(
+                                            account.initialBalance,
+                                        ),
+                                    )}
                                 </p>
                             </button>
                         ))}
@@ -380,10 +403,32 @@ export default function Dashboard() {
 
                                     <div>
                                         <p className="text-sm text-slate-500">
+                                            Saldo atual
+                                        </p>
+
+                                        <p
+                                            className={`mt-1 text-2xl font-bold ${
+                                                Number(
+                                                    contaSelecionada.currentBalance,
+                                                ) < 0
+                                                    ? 'text-red-600'
+                                                    : 'text-slate-800'
+                                            }`}
+                                        >
+                                            {formatCurrency(
+                                                Number(
+                                                    contaSelecionada.currentBalance,
+                                                ),
+                                            )}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-sm text-slate-500">
                                             Saldo inicial
                                         </p>
 
-                                        <p className="mt-1 text-2xl font-bold text-slate-800">
+                                        <p className="mt-1 font-medium text-slate-800">
                                             {formatCurrency(
                                                 Number(
                                                     contaSelecionada.initialBalance,

@@ -8,6 +8,7 @@ export default function Accounts() {
         loading,
         error,
         totalInitialBalance,
+        totalCurrentBalance,
     } = useAccounts()
 
     const [modalNovaConta, setModalNovaConta] = useState(false)
@@ -42,14 +43,23 @@ export default function Accounts() {
 
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                 <p className="text-sm text-slate-500">
-                    Saldo inicial total
+                    Saldo atual total
                 </p>
 
-                <p className="mt-2 text-3xl font-bold text-slate-800">
-                    {formatCurrency(totalInitialBalance)}
+                <p
+                    className={`mt-2 text-3xl font-bold ${
+                        totalCurrentBalance < 0
+                            ? 'text-red-600'
+                            : 'text-slate-800'
+                    }`}
+                >
+                    {formatCurrency(totalCurrentBalance)}
                 </p>
 
                 <p className="mt-1 text-sm text-slate-400">
+                    Saldo inicial total:{' '}
+                    {formatCurrency(totalInitialBalance)}
+                    {' · '}
                     {accounts.length}{' '}
                     {accounts.length === 1
                         ? 'conta cadastrada'
@@ -121,10 +131,25 @@ export default function Accounts() {
 
                             <div className="mt-6">
                                 <p className="text-xs text-slate-400">
-                                    Saldo inicial
+                                    Saldo atual
                                 </p>
 
-                                <p className="mt-1 text-xl font-bold text-slate-800">
+                                <p
+                                    className={`mt-1 text-xl font-bold ${
+                                        Number(account.currentBalance) < 0
+                                            ? 'text-red-600'
+                                            : 'text-slate-800'
+                                    }`}
+                                >
+                                    {formatCurrency(
+                                        Number(
+                                            account.currentBalance,
+                                        ),
+                                    )}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-400">
+                                    Saldo inicial:{' '}
                                     {formatCurrency(
                                         Number(
                                             account.initialBalance,

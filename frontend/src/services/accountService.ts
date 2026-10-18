@@ -12,6 +12,8 @@ export interface Account {
     name: string
     type: AccountType
     initialBalance: number | string
+    // Calculado pela API: saldo inicial + receitas − despesas.
+    currentBalance: number | string
     userId: string
     createdAt: string
     updatedAt: string
