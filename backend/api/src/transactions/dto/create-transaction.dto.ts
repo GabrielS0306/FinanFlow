@@ -18,6 +18,7 @@ export class CreateTransactionDto {
     @IsNumber({
         allowNaN: false,
         allowInfinity: false,
+        maxDecimalPlaces: 2,
     })
     @Min(0.01)
     amount: number

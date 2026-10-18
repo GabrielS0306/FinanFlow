@@ -8,37 +8,37 @@ import { PrismaService } from '../prisma/prisma.service.js'
 import { CreateTransactionDto } from './dto/create-transaction.dto.js'
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js'
 
+const transactionInclude = {
+    account: {
+        select: {
+            id: true,
+            name: true,
+            type: true,
+        },
+    },
+    category: {
+        select: {
+            id: true,
+            name: true,
+            type: true,
+            color: true,
+        },
+    },
+} satisfies Prisma.TransactionInclude
+
 @Injectable()
 export class TransactionsService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create(userId: string, dto: CreateTransactionDto) {
-        const account = await this.prisma.account.findFirst({
-            where: {
-                id: dto.accountId,
-                userId,
-            },
-        })
-
-        if (!account) {
-            throw new NotFoundException(
-                'Conta não encontrada ou não pertence ao usuário.',
-            )
-        }
+        await this.ensureAccountBelongsToUser(userId, dto.accountId)
 
         if (dto.categoryId) {
-            const category = await this.prisma.category.findFirst({
-                where: {
-                    id: dto.categoryId,
-                    userId,
-                },
-            })
-
-            if (!category) {
-                throw new NotFoundException(
-                    'Categoria não encontrada ou não pertence ao usuário.',
-                )
-            }
+            await this.ensureCategoryIsValid(
+                userId,
+                dto.categoryId,
+                dto.type,
+            )
         }
 
         return this.prisma.transaction.create({
@@ -52,6 +52,7 @@ export class TransactionsService {
                 accountId: dto.accountId,
                 categoryId: dto.categoryId ?? null,
             },
+            include: transactionInclude,
         })
     }
 
@@ -60,9 +61,11 @@ export class TransactionsService {
             where: {
                 userId,
             },
-            orderBy: {
-                date: 'desc',
-            },
+            include: transactionInclude,
+            orderBy: [
+                { date: 'desc' },
+                { createdAt: 'desc' },
+            ],
         })
     }
 
@@ -72,6 +75,7 @@ export class TransactionsService {
                 id,
                 userId,
             },
+            include: transactionInclude,
         })
 
         if (!transaction) {
@@ -86,39 +90,29 @@ export class TransactionsService {
         id: string,
         dto: UpdateTransactionDto,
     ) {
-        await this.findOne(userId, id)
+        const transaction = await this.findOne(userId, id)
 
-        if (dto.accountId) {
-            const account = await this.prisma.account.findFirst({
-                where: {
-                    id: dto.accountId,
-                    userId,
-                },
-            })
-
-            if (!account) {
-                throw new NotFoundException(
-                    'Conta não encontrada ou não pertence ao usuário.',
-                )
-            }
+        if (dto.accountId !== undefined) {
+            await this.ensureAccountBelongsToUser(userId, dto.accountId)
         }
 
-        if (dto.categoryId) {
-            const category = await this.prisma.category.findFirst({
-                where: {
-                    id: dto.categoryId,
-                    userId,
-                },
-            })
+        // A categoria final precisa ser compatível com o tipo final,
+        // mesmo quando apenas um dos dois campos é alterado.
+        const nextType = dto.type ?? transaction.type
+        const nextCategoryId =
+            dto.categoryId !== undefined
+                ? dto.categoryId
+                : transaction.categoryId
 
-            if (!category) {
-                throw new NotFoundException(
-                    'Categoria não encontrada ou não pertence ao usuário.',
-                )
-            }
+        if (nextCategoryId) {
+            await this.ensureCategoryIsValid(
+                userId,
+                nextCategoryId,
+                nextType,
+            )
         }
 
-        const data: Prisma.TransactionUpdateInput = {}
+        const data: Prisma.TransactionUncheckedUpdateManyInput = {}
 
         if (dto.description !== undefined) {
             data.description = dto.description.trim()
@@ -141,26 +135,14 @@ export class TransactionsService {
         }
 
         if (dto.accountId !== undefined) {
-            data.account = {
-                connect: {
-                    id: dto.accountId,
-                },
-            }
+            data.accountId = dto.accountId
         }
 
         if (dto.categoryId !== undefined) {
-            data.category = dto.categoryId
-                ? {
-                    connect: {
-                        id: dto.categoryId,
-                    },
-                }
-                : {
-                    disconnect: true,
-                }
+            data.categoryId = dto.categoryId || null
         }
 
-        await this.prisma.transaction.updateMany({
+        const result = await this.prisma.transaction.updateMany({
             where: {
                 id,
                 userId,
@@ -168,21 +150,81 @@ export class TransactionsService {
             data,
         })
 
+        if (result.count === 0) {
+            throw new NotFoundException('Transação não encontrada.')
+        }
+
         return this.findOne(userId, id)
     }
 
     async remove(userId: string, id: string) {
         await this.findOne(userId, id)
 
-        await this.prisma.transaction.deleteMany({
+        const result = await this.prisma.transaction.deleteMany({
             where: {
                 id,
                 userId,
             },
         })
 
+        if (result.count === 0) {
+            throw new NotFoundException('Transação não encontrada.')
+        }
+
         return {
             message: 'Transação excluída com sucesso.',
+        }
+    }
+
+    private async ensureAccountBelongsToUser(
+        userId: string,
+        accountId: string,
+    ) {
+        const account = await this.prisma.account.findFirst({
+            where: {
+                id: accountId,
+                userId,
+            },
+            select: {
+                id: true,
+            },
+        })
+
+        if (!account) {
+            throw new NotFoundException(
+                'Conta não encontrada ou não pertence ao usuário.',
+            )
+        }
+    }
+
+    private async ensureCategoryIsValid(
+        userId: string,
+        categoryId: string,
+        type: TransactionType,
+    ) {
+        const category = await this.prisma.category.findFirst({
+            where: {
+                id: categoryId,
+                userId,
+            },
+            select: {
+                id: true,
+                type: true,
+            },
+        })
+
+        if (!category) {
+            throw new NotFoundException(
+                'Categoria não encontrada ou não pertence ao usuário.',
+            )
+        }
+
+        if (category.type !== type) {
+            throw new BadRequestException(
+                type === TransactionType.INCOME
+                    ? 'A categoria selecionada é de despesa e não pode ser usada em uma receita.'
+                    : 'A categoria selecionada é de receita e não pode ser usada em uma despesa.',
+            )
         }
     }
 }

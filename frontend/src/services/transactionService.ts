@@ -1,6 +1,20 @@
 import { api } from './api'
+import type { AccountType } from './accountService'
 
 export type TransactionType = 'INCOME' | 'EXPENSE'
+
+export interface TransactionAccount {
+    id: string
+    name: string
+    type: AccountType
+}
+
+export interface TransactionCategory {
+    id: string
+    name: string
+    type: TransactionType
+    color: string
+}
 
 export interface Transaction {
     id: string
@@ -12,6 +26,8 @@ export interface Transaction {
     userId: string
     accountId: string
     categoryId?: string | null
+    account: TransactionAccount
+    category: TransactionCategory | null
     createdAt: string
     updatedAt: string
 }
@@ -33,7 +49,7 @@ export interface UpdateTransactionData {
     date?: string
     notes?: string
     accountId?: string
-    categoryId?: string
+    categoryId?: string | null
 }
 
 export const transactionService = {

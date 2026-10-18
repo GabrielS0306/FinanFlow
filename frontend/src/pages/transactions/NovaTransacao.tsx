@@ -7,20 +7,29 @@ import { useCategories } from '../../hooks/useCategories'
 
 import {
     transactionService,
+    type Transaction,
     type TransactionType,
 } from '../../services/transactionService'
+import {
+    toDateInputValue,
+    todayAsInputValue,
+} from '../../utils/date'
 
 interface NovaTransacaoProps {
     aberto: boolean
+    transacao?: Transaction | null
     onFechar: () => void
     onSucesso: () => void
 }
 
 export default function NovaTransacao({
     aberto,
+    transacao = null,
     onFechar,
     onSucesso,
 }: NovaTransacaoProps) {
+    const editando = transacao !== null
+
     const { token } = useAuth()
 
     const {
@@ -39,9 +48,7 @@ export default function NovaTransacao({
     const [accountId, setAccountId] = useState('')
     const [categoryId, setCategoryId] = useState('')
 
-    const [date, setDate] = useState(
-        new Date().toISOString().split('T')[0],
-    )
+    const [date, setDate] = useState(todayAsInputValue)
 
     const [notes, setNotes] = useState('')
 
@@ -52,8 +59,38 @@ export default function NovaTransacao({
         (category) => category.type === type,
     )
 
+    // Preenche o formulário ao abrir: com os dados da transação
+    // em edição ou com valores padrão para uma nova transação.
     useEffect(() => {
+        if (!aberto) {
+            return
+        }
+
+        setType(transacao?.type ?? 'EXPENSE')
+        setDescription(transacao?.description ?? '')
+        setAmount(
+            transacao
+                ? String(transacao.amount).replace('.', ',')
+                : '',
+        )
+        setAccountId(transacao?.accountId ?? '')
+        setCategoryId(transacao?.categoryId ?? '')
+        setDate(
+            transacao
+                ? toDateInputValue(transacao.date)
+                : todayAsInputValue(),
+        )
+        setNotes(transacao?.notes ?? '')
+        setError(null)
+    }, [aberto, transacao])
+
+    useEffect(() => {
+        if (categoriesLoading) {
+            return
+        }
+
         if (
+            categoryId &&
             !categories.some(
                 (category) =>
                     category.type === type &&
@@ -62,13 +99,17 @@ export default function NovaTransacao({
         ) {
             setCategoryId('')
         }
-    }, [type, categoryId, categories])
+    }, [type, categoryId, categories, categoriesLoading])
 
     useEffect(() => {
+        if (accountsLoading) {
+            return
+        }
+
         if (!accounts.some((account) => account.id === accountId)) {
             setAccountId(accounts[0]?.id ?? '')
         }
-    }, [accounts, accountId])
+    }, [accounts, accountId, accountsLoading])
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -104,27 +145,45 @@ export default function NovaTransacao({
         setError(null)
 
         try {
-            await transactionService.create(
-                {
-                    description: description.trim(),
-                    amount: numericAmount,
-                    type,
-                    accountId,
-                    ...(categoryId ? { categoryId } : {}),
-                    ...(date ? { date } : {}),
-                    ...(notes.trim()
-                        ? { notes: notes.trim() }
-                        : {}),
-                },
-                token,
-            )
+            if (transacao) {
+                await transactionService.update(
+                    transacao.id,
+                    {
+                        description: description.trim(),
+                        amount: numericAmount,
+                        type,
+                        accountId,
+                        categoryId: categoryId || null,
+                        ...(date ? { date } : {}),
+                        notes: notes.trim(),
+                    },
+                    token,
+                )
+            } else {
+                await transactionService.create(
+                    {
+                        description: description.trim(),
+                        amount: numericAmount,
+                        type,
+                        accountId,
+                        ...(categoryId ? { categoryId } : {}),
+                        ...(date ? { date } : {}),
+                        ...(notes.trim()
+                            ? { notes: notes.trim() }
+                            : {}),
+                    },
+                    token,
+                )
+            }
 
             onSucesso()
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
-                    : 'Não foi possível criar a transação.',
+                    : editando
+                        ? 'Não foi possível atualizar a transação.'
+                        : 'Não foi possível criar a transação.',
             )
         } finally {
             setSaving(false)
@@ -152,11 +211,15 @@ export default function NovaTransacao({
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">
-                            Nova transação
+                            {editando
+                                ? 'Editar transação'
+                                : 'Nova transação'}
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                            Registre uma nova receita ou despesa.
+                            {editando
+                                ? 'Atualize os dados desta receita ou despesa.'
+                                : 'Registre uma nova receita ou despesa.'}
                         </p>
                     </div>
 
@@ -411,7 +474,9 @@ export default function NovaTransacao({
                             >
                                 {saving
                                     ? 'Salvando...'
-                                    : 'Salvar transação'}
+                                    : editando
+                                        ? 'Salvar alterações'
+                                        : 'Salvar transação'}
                             </button>
                         </div>
                     </form>

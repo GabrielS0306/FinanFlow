@@ -1,9 +1,18 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 
+import { useAuth } from '../../contexts/AuthContext'
 import { useTransactions } from '../../hooks/useTransactions'
+import {
+    transactionService,
+    type Transaction,
+} from '../../services/transactionService'
+import { formatCalendarDate } from '../../utils/date'
 import NovaTransacao from './NovaTransacao'
 
 export default function Transactions() {
+    const { token } = useAuth()
+
     const {
         transactions,
         loading,
@@ -11,10 +20,20 @@ export default function Transactions() {
         totalIncome,
         totalExpense,
         balance,
+        refetch,
     } = useTransactions()
 
     const [modalNovaTransacao, setModalNovaTransacao] =
         useState(false)
+
+    const [transacaoEmEdicao, setTransacaoEmEdicao] =
+        useState<Transaction | null>(null)
+
+    const [excluindoId, setExcluindoId] =
+        useState<string | null>(null)
+
+    const [erroAcao, setErroAcao] =
+        useState<string | null>(null)
 
     const formatCurrency = (value: number) =>
         value.toLocaleString('pt-BR', {
@@ -22,10 +41,55 @@ export default function Transactions() {
             currency: 'BRL',
         })
 
-    const formatDate = (date: string) =>
-        new Date(date).toLocaleDateString('pt-BR')
+    function abrirNovaTransacao() {
+        setTransacaoEmEdicao(null)
+        setModalNovaTransacao(true)
+    }
 
-    if (loading) {
+    function abrirEdicao(transaction: Transaction) {
+        setErroAcao(null)
+        setTransacaoEmEdicao(transaction)
+        setModalNovaTransacao(true)
+    }
+
+    function fecharModal() {
+        setModalNovaTransacao(false)
+        setTransacaoEmEdicao(null)
+    }
+
+    async function excluirTransacao(transaction: Transaction) {
+        if (!token || excluindoId) {
+            return
+        }
+
+        const confirmado = window.confirm(
+            `Excluir a transação "${transaction.description}"? Esta ação não pode ser desfeita.`,
+        )
+
+        if (!confirmado) {
+            return
+        }
+
+        setExcluindoId(transaction.id)
+        setErroAcao(null)
+
+        try {
+            await transactionService.remove(transaction.id, token)
+            refetch()
+        } catch (err) {
+            setErroAcao(
+                err instanceof Error
+                    ? err.message
+                    : 'Não foi possível excluir a transação.',
+            )
+        } finally {
+            setExcluindoId(null)
+        }
+    }
+
+    // Mostra o carregamento em tela cheia apenas na primeira carga,
+    // para que as atualizações não escondam a lista.
+    if (loading && transactions.length === 0) {
         return (
             <p className="text-slate-500">
                 Carregando suas transações...
@@ -57,7 +121,7 @@ export default function Transactions() {
 
                 <button
                     type="button"
-                    onClick={() => setModalNovaTransacao(true)}
+                    onClick={abrirNovaTransacao}
                     className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                     + Nova transação
@@ -103,6 +167,14 @@ export default function Transactions() {
                 </div>
             </div>
 
+            {erroAcao && (
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
+                    <p className="text-sm text-red-600">
+                        {erroAcao}
+                    </p>
+                </div>
+            )}
+
             {/* Lista */}
             <section className="rounded-2xl border border-slate-100 bg-white shadow-sm">
                 <div className="border-b border-slate-100 p-5">
@@ -119,9 +191,7 @@ export default function Transactions() {
 
                         <button
                             type="button"
-                            onClick={() =>
-                                setModalNovaTransacao(true)
-                            }
+                            onClick={abrirNovaTransacao}
                             className="mt-3 text-sm font-medium text-slate-900 hover:underline"
                         >
                             Criar primeira transação →
@@ -143,27 +213,90 @@ export default function Transactions() {
                                             {transaction.description}
                                         </p>
 
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            {formatDate(
-                                                transaction.date,
+                                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                                            <span>
+                                                {formatCalendarDate(
+                                                    transaction.date,
+                                                )}
+                                            </span>
+
+                                            <span aria-hidden="true">
+                                                •
+                                            </span>
+
+                                            <span>
+                                                {transaction.account.name}
+                                            </span>
+
+                                            {transaction.category && (
+                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                                                    <span
+                                                        className="h-2 w-2 rounded-full"
+                                                        style={{
+                                                            backgroundColor:
+                                                                transaction
+                                                                    .category
+                                                                    .color,
+                                                        }}
+                                                    />
+                                                    {transaction.category.name}
+                                                </span>
                                             )}
-                                        </p>
+                                        </div>
                                     </div>
 
-                                    <p
-                                        className={`shrink-0 font-semibold ${
-                                            isIncome
-                                                ? 'text-emerald-600'
-                                                : 'text-red-600'
-                                        }`}
-                                    >
-                                        {isIncome ? '+' : '-'}{' '}
-                                        {formatCurrency(
-                                            Number(
-                                                transaction.amount,
-                                            ),
-                                        )}
-                                    </p>
+                                    <div className="flex shrink-0 items-center gap-3">
+                                        <p
+                                            className={`font-semibold ${
+                                                isIncome
+                                                    ? 'text-emerald-600'
+                                                    : 'text-red-600'
+                                            }`}
+                                        >
+                                            {isIncome ? '+' : '-'}{' '}
+                                            {formatCurrency(
+                                                Number(
+                                                    transaction.amount,
+                                                ),
+                                            )}
+                                        </p>
+
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    abrirEdicao(
+                                                        transaction,
+                                                    )
+                                                }
+                                                disabled={
+                                                    excluindoId !== null
+                                                }
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                aria-label={`Editar ${transaction.description}`}
+                                                title="Editar"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void excluirTransacao(
+                                                        transaction,
+                                                    )
+                                                }
+                                                disabled={
+                                                    excluindoId !== null
+                                                }
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                                aria-label={`Excluir ${transaction.description}`}
+                                                title="Excluir"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )
                         })}
@@ -171,14 +304,14 @@ export default function Transactions() {
                 )}
             </section>
 
-            {/* Modal de nova transação */}
+            {/* Modal de criação e edição de transação */}
             <NovaTransacao
                 aberto={modalNovaTransacao}
-                onFechar={() =>
-                    setModalNovaTransacao(false)
-                }
+                transacao={transacaoEmEdicao}
+                onFechar={fecharModal}
                 onSucesso={() => {
-                    setModalNovaTransacao(false)
+                    fecharModal()
+                    refetch()
                 }}
             />
         </div>

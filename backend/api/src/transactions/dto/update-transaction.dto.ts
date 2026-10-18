@@ -20,6 +20,7 @@ export class UpdateTransactionDto {
     @IsNumber({
         allowNaN: false,
         allowInfinity: false,
+        maxDecimalPlaces: 2,
     })
     @Min(0.01)
     amount?: number
@@ -42,5 +43,5 @@ export class UpdateTransactionDto {
 
     @IsOptional()
     @IsUUID()
-    categoryId?: string
+    categoryId?: string | null
 }

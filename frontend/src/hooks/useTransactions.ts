@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import {
     transactionService,
@@ -11,6 +11,7 @@ export function useTransactions() {
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [reloadKey, setReloadKey] = useState(0)
 
     useEffect(() => {
         let cancelled = false
@@ -51,7 +52,11 @@ export function useTransactions() {
         return () => {
             cancelled = true
         }
-    }, [token])
+    }, [token, reloadKey])
+
+    const refetch = useCallback(() => {
+        setReloadKey((current) => current + 1)
+    }, [])
 
     const totalIncome = transactions
         .filter((transaction) => transaction.type === 'INCOME')
@@ -76,5 +81,6 @@ export function useTransactions() {
         totalIncome,
         totalExpense,
         balance,
+        refetch,
     }
 }
