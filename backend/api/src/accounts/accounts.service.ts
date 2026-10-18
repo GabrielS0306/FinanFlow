@@ -4,7 +4,9 @@ import {
     NotFoundException,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
+import type { Account } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service.js'
+import { calculateCurrentBalance } from './account-balance.js'
 import { CreateAccountDto } from './dto/create-account.dto.js'
 import { UpdateAccountDto } from './dto/update-account.dto.js'
 
@@ -13,7 +15,7 @@ export class AccountsService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create(userId: string, dto: CreateAccountDto) {
-        return this.prisma.account.create({
+        const account = await this.prisma.account.create({
             data: {
                 name: dto.name.trim(),
                 type: dto.type,
@@ -21,13 +23,22 @@ export class AccountsService {
                 userId,
             },
         })
+
+        const [accountWithBalance] = await this.withCurrentBalance(
+            userId,
+            [account],
+        )
+
+        return accountWithBalance
     }
 
     async findAll(userId: string) {
-        return this.prisma.account.findMany({
+        const accounts = await this.prisma.account.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
         })
+
+        return this.withCurrentBalance(userId, accounts)
     }
 
     async findOne(userId: string, id: string) {
@@ -42,7 +53,12 @@ export class AccountsService {
             throw new NotFoundException('Conta não encontrada.')
         }
 
-        return account
+        const [accountWithBalance] = await this.withCurrentBalance(
+            userId,
+            [account],
+        )
+
+        return accountWithBalance
     }
 
     async update(
@@ -111,5 +127,41 @@ export class AccountsService {
         return {
             message: 'Conta excluída com sucesso.',
         }
+    }
+
+    private async withCurrentBalance(
+        userId: string,
+        accounts: Account[],
+    ) {
+        if (accounts.length === 0) {
+            return []
+        }
+
+        const totals = await this.prisma.transaction.groupBy({
+            by: ['accountId', 'type'],
+            where: {
+                userId,
+                accountId: {
+                    in: accounts.map((account) => account.id),
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+
+        return accounts.map((account) => ({
+            ...account,
+            currentBalance: calculateCurrentBalance(
+                account.initialBalance,
+                totals
+                    .filter((total) => total.accountId === account.id)
+                    .map((total) => ({
+                        accountId: total.accountId,
+                        type: total.type,
+                        amount: total._sum.amount,
+                    })),
+            ),
+        }))
     }
 }

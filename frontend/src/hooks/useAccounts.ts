@@ -46,11 +46,18 @@ export function useAccounts() {
         0,
     )
 
+    const totalCurrentBalance = accounts.reduce(
+        (total, account) =>
+            total + Number(account.currentBalance),
+        0,
+    )
+
     return {
         accounts,
         loading,
         error,
         totalInitialBalance,
+        totalCurrentBalance,
         refetch: loadAccounts,
     }
 }
