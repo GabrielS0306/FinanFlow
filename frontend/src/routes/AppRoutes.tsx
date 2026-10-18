@@ -10,6 +10,8 @@ import Register from '../pages/auth/Register'
 import ProtectedRoute from './ProtectedRouter'
 
 import Dashboard from '../pages/dashboard/Dashboard'
+import Transactions from '../pages/transactions/Transactions'
+import Accounts from '../pages/accounts/Accounts'
 
 function Page({ title }: { title: string }) {
     return (
@@ -49,12 +51,12 @@ export default function AppRoutes() {
 
                     <Route
                         path="/transacoes"
-                        element={<Page title="Transações" />}
+                        element={<Transactions />}
                     />
 
-                    <Route
-                        path="/transacoes/nova"
-                        element={<Page title="Nova transação" />}
+                    <Route 
+                        path="/contas" 
+                        element={<Accounts />} 
                     />
 
                     <Route
